@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Calculadora de pauta</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* VOICE: herramienta de trabajo clara, didáctica, sin ruido — para alumnos que recién empiezan.
+   IDEA: un plano técnico del embudo: cada etapa es una pieza medida, cada flecha una tasa editable.
+   PICTURE: el embudo vivo, grande, con números y costos máximos en cada etapa.
+   COLOUR and TYPE: blanco, negro, planos de hormigón #d8d8d4, amarillo seguridad solo en lo elegido y el resultado. Hanken Grotesk.
+   LAYOUT: modos arriba, controles a la izquierda, resultado + embudo a la derecha; se apila en móvil. */
+:root{color-scheme:light dark;--bg:light-dark(#ffffff,#1a1a19);--ink:light-dark(#111110,#f1f1ee);--mute:light-dark(#5f5f5a,#a9a9a3);--plane:light-dark(#d8d8d4,#2b2b29);--plane2:light-dark(#efefec,#222221);--line:light-dark(#c4c4bf,#3a3a37);--y:#ffe600;--bad:light-dark(#b3261e,#ff8a80);--good:light-dark(#1f6f3a,#7bd897)}
+:root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 "Hanken Grotesk",system-ui,sans-serif;overflow-x:clip}
+.band{padding:clamp(22px,3.5vw,48px) max(4vw,16px)}
+.wrap{max-width:1240px;margin:0 auto}
+h1{font-size:clamp(28px,4vw,42px);line-height:1.05;margin:0 0 6px;font-weight:800;text-wrap:balance;letter-spacing:-.02em}
+h2{font-size:21px;line-height:1.2;margin:0 0 12px;font-weight:700}
+p{margin:0}
+.lead{color:var(--mute);max-width:68ch}
+button,input{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:3px solid var(--ink);outline-offset:2px}
+.modes{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px;margin-top:22px}
+.mode{border:1.5px solid var(--ink);background:var(--bg);text-align:left;padding:12px 14px;border-radius:10px;min-height:64px;transition:background .15s}
+.mode b{display:block;font-size:16px;line-height:1.2}
+.mode span{font-size:13px;color:var(--mute)}
+.mode[aria-pressed=true]{background:var(--y);color:#111;border-color:#111}
+.mode[aria-pressed=true] span{color:#333}
+.mode:hover{background:var(--plane2)}.mode[aria-pressed=true]:hover{background:var(--y)}
+.grid{display:grid;grid-template-columns:340px minmax(0,1fr);gap:28px;align-items:start}
+.panel{background:var(--plane2);border-radius:14px;padding:20px;position:sticky;top:12px}
+.field{margin-bottom:18px}
+.field label,.glabel{display:block;font-weight:600;font-size:15px;margin-bottom:6px}
+.hint{font-size:13px;color:var(--mute);margin-top:6px;line-height:1.4}
+.inp{display:flex;align-items:center;background:var(--bg);border:1.5px solid var(--line);border-radius:10px;padding:0 12px;min-height:48px}
+.inp:focus-within{border-color:var(--ink)}
+.inp span{color:var(--mute);font-size:14px;white-space:nowrap}
+.inp input{border:0;background:transparent;font-size:18px;font-weight:600;width:100%;padding:10px 6px;outline:none}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{border:1.5px solid var(--line);background:var(--bg);border-radius:999px;padding:8px 14px;min-height:44px;font-weight:600;font-size:15px}
+.chip[aria-pressed=true]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.chip.be{border-style:dashed}
+.small{font-size:13px}
+.reset{border:0;background:none;text-decoration:underline;color:var(--mute);padding:10px 0;min-height:44px;font-size:14px}
+.result{border-radius:14px;background:var(--y);color:#111;padding:clamp(18px,3vw,28px)}
+.result .k{font-size:15px;font-weight:600}
+.result .big{font-size:clamp(30px,5vw,52px);font-weight:800;line-height:1.05;letter-spacing:-.02em;margin:6px 0 8px;text-wrap:balance}
+.result .say{font-size:17px;max-width:62ch}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:12px;overflow:hidden;margin:16px 0 26px}
+.kpi{background:var(--bg);padding:14px 16px}
+.kpi .l{font-size:13px;color:var(--mute)}
+.kpi .v{font-size:24px;font-weight:700;white-space:nowrap;font-variant-numeric:tabular-nums}
+.kpi .v.bad{color:var(--bad)}.kpi .v.good{color:var(--good)}
+.warn{border-left:4px solid var(--bad);padding:10px 14px;background:var(--plane2);border-radius:0 10px 10px 0;margin:-10px 0 22px;font-size:15px}
+.warn:empty{display:none}
+.fhead{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap}
+.funnel{margin-top:6px}
+.st{display:grid;grid-template-columns:minmax(0,1fr) 150px;gap:14px;align-items:center}
+.bar{margin:0 auto;background:var(--ink);color:var(--bg);border-radius:10px;padding:12px 16px;display:flex;justify-content:space-between;align-items:center;gap:10px;min-height:58px;transition:width .35s}
+.bar .n{font-size:22px;font-weight:800;white-space:nowrap;font-variant-numeric:tabular-nums}
+.bar .lb{font-size:14px;line-height:1.25}
+.st.last .bar{background:var(--y);color:#111}
+.st.first .bar{background:var(--plane);color:var(--ink)}
+.cost{text-align:right}
+.cost .cv{font-size:18px;font-weight:700;white-space:nowrap;font-variant-numeric:tabular-nums}
+.cost .cl{font-size:12px;color:var(--mute)}
+.cn{display:grid;grid-template-columns:minmax(0,1fr) 150px;gap:14px;padding:6px 0}
+.cnin{display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap}
+.cnin svg{flex:none;color:var(--mute)}
+.rate{display:flex;align-items:center;border:1.5px solid var(--line);border-radius:10px;background:var(--bg);overflow:hidden}
+.rate button{border:0;background:var(--plane2);width:40px;height:40px;font-size:20px;font-weight:700}
+.rate input{width:64px;border:0;background:transparent;text-align:center;font-size:16px;font-weight:700;outline:none;-moz-appearance:textfield}
+.rate input::-webkit-inner-spin-button{display:none}
+.rate em{font-style:normal;font-weight:700;padding-right:6px}
+.rlab{font-size:14px;color:var(--mute);max-width:24ch;line-height:1.3}
+.tip{display:inline-grid;place-items:center;width:20px;height:20px;border-radius:50%;border:1.5px solid var(--mute);font-size:12px;font-weight:700;color:var(--mute);cursor:help;position:relative;margin-left:4px;vertical-align:1px}
+.sec{margin-top:34px}
+table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+th,td{padding:10px 8px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+th{font-size:13px;color:var(--mute);font-weight:600}
+td.r,th.r{text-align:right;white-space:nowrap}
+tr.on td{background:var(--plane2);font-weight:700}
+.gloss{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px}
+.gloss div{background:var(--plane2);border-radius:12px;padding:14px 16px}
+.gloss b{display:block;margin-bottom:2px}
+.gloss p{font-size:15px;color:var(--mute)}
+.foot{font-size:13px;color:var(--mute);margin-top:30px}
+.scroll{overflow-x:auto}
+@media(max-width:900px){.grid{grid-template-columns:minmax(0,1fr)}.panel{position:static}}
+@media(max-width:600px){
+ .st,.cn{grid-template-columns:minmax(0,1fr)}
+ .cost{text-align:left;display:flex;gap:8px;align-items:baseline;padding:2px 4px 0}
+ .bar{width:100%!important}
+ .cnin{justify-content:flex-start}
+ table{font-size:13px}.stack thead{display:none}.stack tr{display:grid;padding-block:10px}.stack td{display:flow-root;border:0;padding:3px 0;padding-inline-start:8em;text-align:start}.stack td::before{content:attr(data-l);float:inline-start;width:7.5em;margin-inline-start:-8em;white-space:normal;color:var(--mute)}.stack td:empty{display:none}
+}
+@media(prefers-reduced-motion:reduce){.bar{transition:none}}
+</style>
+<script>new MutationObserver(()=>{for(const c of document.querySelectorAll('.stack td:not([data-l])')){let i=0,p=c;while(p=p.previousElementSibling)i+=p.colSpan;c.dataset.l=c.closest('table').rows[0].cells[i]?.textContent||''}}).observe(document,{childList:true,subtree:true})</script>
+</head>
+<body>
+<header class="band" style="padding-bottom:8px">
+ <div class="wrap">
+  <h1>Calculadora de tráfico pago</h1>
+  <p class="lead">Elige tu tipo de embudo, pon tu presupuesto y tu precio, y mira cuántos clics, visitas y ventas necesitas — y cuánto puedes pagar como máximo por cada uno. Todas las tasas del embudo se pueden editar con tus datos reales.</p>
+  <div class="modes" id="modes" role="group" aria-label="Tipo de embudo"></div>
+ </div>
+</header>
+
+<main class="band">
+ <div class="wrap grid">
+  <aside class="panel" id="panel" aria-label="Datos de entrada"></aside>
+  <section>
+   <div class="result" aria-live="polite">
+    <div class="k" id="rk"></div>
+    <div class="big" id="rbig"></div>
+    <p class="say" id="rsay"></p>
+   </div>
+   <div class="kpis" id="kpis"></div>
+   <div class="warn" id="warn"></div>
+
+   <div class="fhead">
+    <h2>Tu embudo, etapa por etapa</h2>
+    <span class="small" style="color:var(--mute)">Edita los % entre etapas con tus números reales</span>
+   </div>
+   <div class="funnel" id="funnel"></div>
+
+   <div class="sec" id="extra"></div>
+
+   <div class="sec">
+    <h2>Cómo leer estos números</h2>
+    <div class="gloss" id="gloss"></div>
+   </div>
+   <p class="foot">Las tasas iniciales son referencias de mercado para LATAM: úsalas para planificar y reemplázalas por las tuyas apenas tengas datos de tus campañas. Los costos son <b>máximos</b>: si pagas menos que eso por cada etapa, superas el objetivo.</p>
+  </section>
+ </div>
+</main>
+
+<script>
+{
+const CUR=['USD','ARS','MXN','COP','CLP','PEN','EUR'];
+const DAYS=[7,15,30];
+const r=(k,l,d,t)=>({k,l,d,t});
+const CTR=r('ctr','CTR del anuncio',1.5,'De cada 100 personas que ven tu anuncio, cuántas hacen clic.');
+const roasTxt=v=>v<1?'Pierdes dinero':v==1?'Recuperas lo invertido, sin ganancia':`Por cada 1 invertido vuelven ${String(v).replace('.',',')}`;
+
+const MODES={
+ directa:{name:'Venta directa',sub:'Low ticket o infoproducto',
+  inputs:[['budget','Presupuesto de publicidad','money',2000],['ticket','Precio del producto (o tu comisión)','money',53]],
+  obj:{k:'roas',l:'¿Qué retorno quieres? (ROAS)',o:[1,1.5,1.8,2,2.5,3],d:2,f:v=>v+'x',h:roasTxt},
+  rates:[CTR,r('carga','Clic → carga la página',85,'Personas que hicieron clic y realmente vieron la página. Depende de la velocidad de carga.'),r('chk','Página → inicia checkout',10,'De cada 100 que ven la página de ventas, cuántas van al pago.'),r('buy','Checkout → compra',10,'De cada 100 que inician el pago, cuántas lo terminan.')],
+  calc(s,R){const f=s.budget*s.roas,v=f/s.ticket;const n=back(v,R,['ctr','carga','chk','buy']);
+   return{stages:lab(n,['Impresiones','Clics en el anuncio','Visitas a la página de ventas','Inicios de checkout','Ventas']),cost:s.budget,
+    k:'Costo máximo por venta (CPA)',big:money(s.budget/v),say:`Con ${money(s.budget)} de publicidad y ROAS ${s.roas}x necesitas ${num(v)} ventas para facturar ${money(f)}.`,
+    kpis:[['Ventas necesarias',num(v)],['Facturación',money(f)],['Ganancia sobre la pauta',money(f-s.budget),f-s.budget<0?'bad':f-s.budget>0?'good':''],['Costo por clic máx. (CPC)',money(s.budget/n[1])]]}}},
+
+ lanz:{name:'Lanzamiento',sub:'Webinar, clases o desafío',
+  inputs:[['ticket','Precio del producto','money',297],['budget','Presupuesto total','money',1000],['cap','% para captar leads','pct',85],['rmk','% para remarketing','pct',10]],
+  obj:{k:'cpl',l:'¿Cuánto esperas pagar por lead? (CPL)',o:[0.5,0.7,1,1.5],d:0.7,f:v=>money(v,2),h:v=>v<=0.5?'Escenario muy bueno':v<=0.7?'Escenario bueno':v<=1?'Escenario regular':'Escenario malo'},
+  rates:[CTR,r('carga','Clic → carga la página',80,'Personas que hicieron clic y realmente vieron la página de registro.'),r('reg','Visita → se registra',35,'De cada 100 que ven la página de registro, cuántas dejan sus datos.'),r('grp','Lead → entra al grupo',75,'Leads que entran a tu grupo de WhatsApp/Telegram o lista.'),r('c1','Grupo → asiste a clase 1',10,'Del grupo, cuántos ven la primera clase en vivo.'),r('c2','Clase 1 → clase 2',80,'De los que vieron la clase 1, cuántos vuelven a la 2.'),r('c3','Clase 2 → clase 3',70,'De los que vieron la clase 2, cuántos llegan a la 3.'),r('conv','Conversión a venta',2,'Porcentaje del GRUPO completo que compra (no solo de quienes vieron la clase 3).')],
+  calc(s,R){const cap=Math.min(s.cap,100),rmk=Math.min(s.rmk,100-cap),ven=Math.max(0,100-cap-rmk);const bc=s.budget*cap/100;
+   const leads=bc/s.cpl,vis=leads/p(R.reg),cl=vis/p(R.carga),im=cl/p(R.ctr),g=leads*p(R.grp),c1=g*p(R.c1),c2=c1*p(R.c2),c3=c2*p(R.c3),v=g*p(R.conv),f=v*s.ticket,roas=f/s.budget;
+   const st=lab([im,cl,vis,leads,g,c1,c2,c3,v],['Impresiones','Clics en el anuncio','Visitas a la página de registro','Leads captados','Personas en el grupo','Asisten a la clase 1','Asisten a la clase 2','Asisten a la clase 3','Ventas']);
+   st.forEach((x,i)=>x.c=i<8?bc/x.n:s.budget/x.n);
+   const needV=r2=>s.budget*r2/s.ticket,maxCpl=r2=>bc/(needV(r2)/p(R.conv)/p(R.grp));
+   return{stages:st,costNote:'Costos de captación calculados sobre la parte del presupuesto para captar leads.',
+    k:'Ventas proyectadas',big:`${num(v)} ventas · ROAS ${roas.toFixed(1).replace('.',',')}x`,say:`Pagando ${money(s.cpl,2)} por lead captas ${num(leads)} leads. Con ${String(R.conv).replace('.',',')}% de conversión del grupo, facturas ${money(f)}.`,
+    kpis:[['Facturación',money(f)],['Ganancia sobre la pauta',money(f-s.budget),f-s.budget<0?'bad':'good'],['Costo por venta',money(s.budget/v)],['CPL máx. para no perder',money(maxCpl(1),2)],['CPL máx. para ROAS 2x',money(maxCpl(2),2)]],
+    dist:[['Captación de leads',cap,bc],['Remarketing',rmk,s.budget*rmk/100],['Venta (apertura de carrito)',ven,s.budget*ven/100]],
+    scen:MODES.lanz.obj.o.map(c=>{const l=bc/c,gg=l*p(R.grp),vv=gg*p(R.conv);return[c,l,gg,vv,vv*s.ticket,vv*s.ticket/s.budget]}),
+    warn:cap+rmk>100?'La suma de captación + remarketing supera el 100%. Se ajustó el remarketing.':''}}},
+
+ leads:{name:'Captación de leads',sub:'Grupo de WhatsApp o lista',
+  inputs:[['budget','Presupuesto de captación','money',5000]],
+  obj:{k:'cpw',l:'¿Cuánto quieres pagar por persona en el grupo?',o:[0.5,0.75,1,1.5,2],d:1,f:v=>money(v,2),h:()=>'Costo por cada persona que termina dentro de tu WhatsApp/Telegram.'},
+  rates:[CTR,r('carga','Clic → carga la página',80,'Personas que hicieron clic y realmente vieron la página de registro.'),r('reg','Visita → se registra',40,'De cada 100 que ven la página, cuántas dejan su email.'),r('wa','Registro → entra al grupo',70,'De los registrados, cuántos entran al WhatsApp desde la página de gracias.')],
+  calc(s,R){const w=s.budget/s.cpw,n=back(w,R,['ctr','carga','reg','wa']);
+   return{stages:lab(n,['Impresiones','Clics en el anuncio','Visitas a la página de registro','Registros (email)','Personas en el WhatsApp']),cost:s.budget,
+    k:'Personas que vas a tener en el grupo',big:num(w),say:`Con ${money(s.budget)} y un costo de ${money(s.cpw,2)} por persona, necesitas ${num(n[3])} registros y ${num(n[1])} clics.`,
+    kpis:[['Costo máx. por registro',money(s.budget/n[3])],['Costo máx. por visita',money(s.budget/n[2])],['Costo por clic máx. (CPC)',money(s.budget/n[1])]]}}},
+
+ call:{name:'Llamadas de venta',sub:'High ticket con agenda',
+  inputs:[['budget','Presupuesto de publicidad','money',1000],['ticket','Precio del programa','money',1500]],
+  obj:{k:'roas',l:'¿Qué retorno quieres? (ROAS)',o:[2,3,5,8],d:3,f:v=>v+'x',h:roasTxt},
+  rates:[CTR,r('carga','Clic → carga la página',80,'Personas que hicieron clic y realmente vieron el video (VSL).'),r('ini','VSL → inicia agenda',30,'De cada 100 que ven la página del video, cuántas abren el calendario.'),r('ag','Inicia → agenda',70,'De los que abren el calendario, cuántos completan la reserva.'),r('show','Agenda → asiste',60,'De los agendados, cuántos se presentan a la llamada.'),r('close','Llamada → cierre',20,'De cada 100 llamadas realizadas, cuántas terminan en venta.')],
+  calc(s,R){const f=s.budget*s.roas,v=f/s.ticket,n=back(v,R,['ctr','carga','ini','ag','show','close']);
+   return{stages:lab(n,['Impresiones','Clics en el anuncio','Visitas a la VSL','Inicios de agenda','Llamadas agendadas','Llamadas realizadas','Ventas']),cost:s.budget,
+    k:'Costo máximo por llamada agendada',big:money(s.budget/n[4]),say:`Para facturar ${money(f)} necesitas ${num(v)} ventas, o sea ${num(n[5])} llamadas realizadas y ${num(n[4])} agendadas.`,
+    kpis:[['Ventas necesarias',num(v)],['Facturación',money(f)],['Costo máx. por venta',money(s.budget/v)],['Costo por clic máx. (CPC)',money(s.budget/n[1])]]}}},
+
+ ecom:{name:'E-commerce',sub:'Tienda o dropshipping',
+  inputs:[['budget','Presupuesto de publicidad','money',1500],['ticket','Precio del producto','money',50],['mg','Margen de ganancia del producto','pct',30]],
+  obj:{k:'roas',l:'¿Qué retorno quieres? (ROAS)',o:[2,3,4,5,6],d:4,f:v=>v+'x',h:roasTxt},
+  rates:[CTR,r('carga','Clic → carga la página',70,'Personas que hicieron clic y realmente vieron la tienda.'),r('chk','Producto → inicia checkout',20,'De cada 100 que ven el producto, cuántas van al pago.'),r('buy','Checkout → compra',20,'De cada 100 que inician el pago, cuántas lo terminan.')],
+  calc(s,R){const f=s.budget*s.roas,v=f/s.ticket,n=back(v,R,['ctr','carga','chk','buy']),be=100/Math.max(s.mg,.1),g=f*s.mg/100-s.budget;
+   return{stages:lab(n,['Impresiones','Clics en el anuncio','Visitas a la tienda','Inicios de checkout','Ventas']),cost:s.budget,
+    k:'Costo máximo por venta (CPA)',big:money(s.budget/v),say:`Necesitas ${num(v)} ventas para facturar ${money(f)}. Con ${s.mg}% de margen, tu ROAS mínimo para no perder es ${be.toFixed(2).replace('.',',')}x.`,
+    kpis:[['Ventas necesarias',num(v)],['Facturación',money(f)],['Ganancia real',money(g),g<0?'bad':'good'],['ROAS para no perder',be.toFixed(2).replace('.',',')+'x']],
+    warn:s.roas<be?`Con este ROAS pierdes dinero: tu margen de ${s.mg}% necesita al menos ${be.toFixed(2).replace('.',',')}x para cubrir la publicidad.`:''}}},
+
+ local:{name:'Negocio local',sub:'Campañas de mensajes',
+  inputs:[['budget','Presupuesto de publicidad','money',1500],['ticket','Ticket medio o producto más vendido','money',47]],
+  obj:{k:'roas',l:'¿Qué retorno quieres? (ROAS)',o:[1.5,2,3,4],d:2,f:v=>v+'x',h:roasTxt},
+  rates:[CTR,r('msg','Clic → envía mensaje',20,'De cada 100 clics, cuántos te escriben.'),r('conv','Mensaje → conversación real',70,'Mensajes que se convierten en una conversación de verdad (no solo "hola").'),r('close','Conversación → venta',10,'De cada 100 conversaciones reales, cuántas compran.')],
+  calc(s,R){const f=s.budget*s.roas,v=f/s.ticket,n=back(v,R,['ctr','msg','conv','close']);
+   return{stages:lab(n,['Impresiones','Clics en el anuncio','Mensajes recibidos','Conversaciones reales','Ventas']),cost:s.budget,
+    k:'Costo máximo por mensaje',big:money(s.budget/n[2]),say:`Para facturar ${money(f)} necesitas ${num(v)} ventas, ${num(n[3])} conversaciones reales y ${num(n[2])} mensajes.`,
+    kpis:[['Ventas necesarias',num(v)],['Facturación',money(f)],['Costo máx. por venta',money(s.budget/v)],['Costo por clic máx. (CPC)',money(s.budget/n[1])]]}}}
+};
+
+const GLOSS=[['ROAS','Retorno sobre la inversión publicitaria. ROAS 2x = por cada 1 que pones en anuncios, vuelven 2 en ventas. ROAS 1x = recuperas lo invertido.'],['CPA / Costo por venta','Cuánto te cuesta en publicidad conseguir una venta. Si tu CPA real es menor que el máximo, vas mejor que el objetivo.'],['CPL','Costo por lead: lo que pagas para que una persona deje sus datos.'],['CTR','Porcentaje de personas que hacen clic en tu anuncio después de verlo. Mide qué tan llamativo es el anuncio.'],['CPC','Costo por clic: lo que pagas por cada clic en el anuncio.'],['CPM','Costo por cada mil impresiones (veces que se muestra tu anuncio).'],['Carga de página','De los que hacen clic, cuántos ven la página. Si es bajo, tu página carga lento.'],['Checkout','La página de pago. Si mucha gente llega y no compra, revisa precio, confianza o medios de pago.']];
+
+const p=x=>Math.max(+x||0,.01)/100;
+function back(fin,R,keys){const n=[fin];for(let i=keys.length-1;i>=0;i--)n.unshift(n[0]/p(R[keys[i]]));return n}
+function lab(n,ls){return n.map((x,i)=>({l:ls[i],n:x}))}
+
+let st={mode:'directa',cur:'USD',days:30,m:{}};
+try{const x=JSON.parse(localStorage.getItem('calc-pauta-v1'));if(x&&MODES[x.mode])st={...st,...x}}catch(e){}
+const save=()=>{try{localStorage.setItem('calc-pauta-v1',JSON.stringify(st))}catch(e){}};
+function ms(){const M=MODES[st.mode];if(!st.m[st.mode]){const o={r:{}};M.inputs.forEach(i=>o[i[0]]=i[3]);o[M.obj.k]=M.obj.d;M.rates.forEach(x=>o.r[x.k]=x.d);st.m[st.mode]=o}return st.m[st.mode]}
+
+function money(v,dec){if(!isFinite(v))return '—';const d=dec??(Math.abs(v)<10?2:0);try{return new Intl.NumberFormat('es-AR',{style:'currency',currency:st.cur,minimumFractionDigits:d,maximumFractionDigits:d}).format(v)}catch(e){return st.cur+' '+v.toFixed(d)}}
+function num(v){if(!isFinite(v))return '—';return new Intl.NumberFormat('es-AR',{maximumFractionDigits:v<10?1:0}).format(v)}
+const esc=t=>String(t).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const $=id=>document.getElementById(id);
+const arrow='<svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><path d="M9 2v12M4 9.5 9 14.5 14 9.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
+function renderModes(){$('modes').innerHTML=Object.entries(MODES).map(([k,M])=>`<button class="mode" data-mode="${k}" aria-pressed="${k===st.mode}"><b>${M.name}</b><span>${M.sub}</span></button>`).join('')}
+
+function renderPanel(){const M=MODES[st.mode],s=ms();
+ $('panel').innerHTML=`
+ <div class="field"><span class="glabel">Moneda</span><div class="chips">${CUR.map(c=>`<button class="chip" data-cur="${c}" aria-pressed="${c===st.cur}">${c}</button>`).join('')}</div></div>
+ ${M.inputs.map(([k,l,t])=>`<div class="field"><label for="in-${k}">${l}</label><div class="inp">${t==='money'?`<span class="cc">${st.cur}</span>`:''}<input id="in-${k}" data-in="${k}" type="number" inputmode="decimal" min="0" step="any" value="${s[k]}">${t==='pct'?'<span>%</span>':''}</div>${k==='rmk'?'<p class="hint" id="venHint"></p>':''}</div>`).join('')}
+ <div class="field"><span class="glabel">${M.obj.l}</span><div class="chips" id="objs">${M.obj.o.map(v=>`<button class="chip" data-obj="${v}" aria-pressed="${v==s[M.obj.k]}">${M.obj.f(v)}</button>`).join('')}</div><p class="hint" id="objHint"></p></div>
+ <div class="field"><span class="glabel">¿En cuántos días lo inviertes?</span><div class="chips">${DAYS.map(d=>`<button class="chip" data-days="${d}" aria-pressed="${d===st.days}">${d} días</button>`).join('')}</div><p class="hint" id="dayHint"></p></div>
+ <button class="reset" id="reset">Volver a los valores iniciales de este embudo</button>`}
+
+function renderFunnel(){const M=MODES[st.mode],s=ms(),n=M.rates.length+1;let h='';
+ for(let i=0;i<n;i++){h+=`<div class="st${i===0?' first':''}${i===n-1?' last':''}"><div class="bar" style="width:${100-i*(55/(n-1))}%"><span class="lb" id="sl${i}"></span><span class="n" id="sn${i}"></span></div><div class="cost"><div class="cv" id="sc${i}"></div><div class="cl">${i===0?'CPM máximo':i===n-1&&st.mode!=='leads'?'costo máx. por venta':'costo máx. c/u'}</div></div></div>`;
+  if(i<n-1){const R=M.rates[i];h+=`<div class="cn"><div class="cnin">${arrow}<div class="rate"><button data-step="${R.k}" data-d="-1" aria-label="Bajar ${esc(R.l)}">−</button><input id="rt-${R.k}" data-rate="${R.k}" type="number" step="any" min="0.1" max="100" value="${s.r[R.k]}" aria-label="${esc(R.l)} en %"><em>%</em><button data-step="${R.k}" data-d="1" aria-label="Subir ${esc(R.l)}">+</button></div><span class="rlab">${R.l}<span class="tip" title="${esc(R.t)}">?</span></span></div><div></div></div>`}}
+ $('funnel').innerHTML=h;
+ $('gloss').innerHTML=GLOSS.map(([a,b])=>`<div><b>${a}</b><p>${b}</p></div>`).join('')}
+
+function update(){const M=MODES[st.mode],s=ms(),o=M.calc(s,s.r);
+ $('rk').textContent=o.k;$('rbig').textContent=o.big;$('rsay').textContent=o.say;
+ $('kpis').innerHTML=o.kpis.map(([l,v,c])=>`<div class="kpi"><div class="l">${l}</div><div class="v ${c||''}">${esc(v)}</div></div>`).join('');
+ $('warn').textContent=o.warn||'';
+ o.stages.forEach((x,i)=>{$('sl'+i).textContent=x.l;$('sn'+i).textContent=num(x.n);const c=x.c??(o.cost/x.n);$('sc'+i).textContent=i===0?money(c*1000):money(c)});
+ $('objHint').textContent=M.obj.h(s[M.obj.k]);
+ const per=s.budget/st.days,last=o.stages[o.stages.length-1];
+ $('dayHint').textContent=`Presupuesto diario: ${money(per)} · ${num(last.n/st.days)} ${st.mode==='leads'?'personas':'ventas'} por día.`;
+ if($('venHint'))$('venHint').textContent=`El resto (${o.dist[2][1]}%) va a la etapa de venta.`;
+ let ex='';
+ if(o.dist)ex+=`<h2>Cómo se reparte el presupuesto</h2><table class="stack"><thead><tr><th>Etapa</th><th class="r">%</th><th class="r">Monto</th></tr></thead><tbody>${o.dist.map(d=>`<tr><td>${d[0]}</td><td class="r">${d[1]}%</td><td class="r">${money(d[2])}</td></tr>`).join('')}</tbody></table>`;
+ if(o.scen)ex+=`<h2 style="margin-top:28px">Comparación de escenarios según el CPL</h2><div class="scroll"><table><thead><tr><th>CPL</th><th class="r">Leads</th><th class="r">Grupo</th><th class="r">Ventas</th><th class="r">Facturación</th><th class="r">ROAS</th></tr></thead><tbody>${o.scen.map(x=>`<tr class="${x[0]==s.cpl?'on':''}"><td>${money(x[0],2)} · ${MODES.lanz.obj.h(x[0]).replace('Escenario ','')}</td><td class="r">${num(x[1])}</td><td class="r">${num(x[2])}</td><td class="r">${num(x[3])}</td><td class="r">${money(x[4])}</td><td class="r">${x[5].toFixed(1).replace('.',',')}x</td></tr>`).join('')}</tbody></table></div><p class="hint">Misma conversión y mismas tasas en todos los escenarios: solo cambia cuánto pagas por lead.${o.costNote?' '+o.costNote:''}</p>`;
+ $('extra').innerHTML=ex;$('extra').style.display=ex?'':'none';
+ save()}
+
+function full(){renderModes();renderPanel();renderFunnel();update()}
+
+document.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;const s=ms(),M=MODES[st.mode];
+ if(b.dataset.mode){st.mode=b.dataset.mode;full();return}
+ if(b.dataset.cur){st.cur=b.dataset.cur;renderPanel();update();return}
+ if(b.dataset.days){st.days=+b.dataset.days;document.querySelectorAll('[data-days]').forEach(x=>x.setAttribute('aria-pressed',x===b));update();return}
+ if(b.dataset.obj){s[M.obj.k]=+b.dataset.obj;document.querySelectorAll('[data-obj]').forEach(x=>x.setAttribute('aria-pressed',x===b));update();return}
+ if(b.dataset.step){const k=b.dataset.step,inc=s.r[k]<5?(k==='ctr'||k==='conv'?.1:.5):1;let v=Math.round((+s.r[k]+inc*b.dataset.d)*10)/10;v=Math.min(100,Math.max(.1,v));s.r[k]=v;$('rt-'+k).value=v;update();return}
+ if(b.id==='reset'){delete st.m[st.mode];full()}});
+
+document.addEventListener('input',e=>{const t=e.target,s=ms();
+ if(t.dataset.in){const v=parseFloat(t.value);if(isFinite(v)&&v>=0){s[t.dataset.in]=v;update()}}
+ if(t.dataset.rate){const v=parseFloat(t.value);if(isFinite(v)&&v>0){s.r[t.dataset.rate]=Math.min(100,v);update()}}});
+
+full();
+}
+</script>
+</body>
+</html>
